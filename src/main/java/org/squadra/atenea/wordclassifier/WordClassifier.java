@@ -1,32 +1,19 @@
 package org.squadra.atenea.wordclassifier;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
 public class WordClassifier {
-
-	private static int bufferLen = 1024;
-
-	private String wordToClassify;
-
-	private URL raeUrl;
-
-	private HttpURLConnection conn;
-
-	private InputStream webIS;
-
-	private BufferedReader web;
 
 	private List<String> classifiers;
 
-	private char[] buffer;
+	private Document doc;
 
 	/**
 	 * @param args
@@ -36,117 +23,130 @@ public class WordClassifier {
 
 		WordClassifier WC = new WordClassifier();
 
-		WC.classifyWord("Puto");
+		WC.classifyWord("siempre");
 
 	}
 
 	WordClassifier() {
-		buffer = new char[bufferLen];
 
-		classifiers = new ArrayList();
+		classifiers = new ArrayList<String>();
 
 		classifiers.add("adjetivo");
+
 	}
 
 	public void classifyWord(String word) {
 
+		boolean isVerb = false;
+		String suggestedLink;
+		Elements content = new Elements();
+
 		try {
 
-			String wordToClassify;
+			doc = Jsoup.connect(
+					"http://lema.rae.es/drae/srv/search?val=" + word).get();
 
-			System.out.println("Classifying word " + word);
+			// Obtenemos las clasificaciones y alguna basura mas
+			content = doc.getElementsByClass("d");
 
-			wordToClassify = URLEncoder.encode(word.toLowerCase(), "UTF-8");
+			if (content.isEmpty()) {
 
-			raeUrl = new URL("http://lema.rae.es/drae/srv/search?val="
-					+ wordToClassify);
+				// No existe la palabra, se suguiere otra
 
-			System.out.println("getting web");
+				suggestedLink = doc.getElementsByTag("a").get(0).attr("href");
 
-			conn = (HttpURLConnection) raeUrl.openConnection();
-
-			conn.setConnectTimeout(30000000);
-
-			conn.setReadTimeout(30000000);
-
-			web = new BufferedReader(new InputStreamReader(
-					conn.getInputStream()));
-
-			System.out.println("done!");
-
-			String wordBuffer = new String();
-
-			while (web.read(buffer) > 0) {
-
-				for (Integer i = 0; i < bufferLen; i++) {
-					wordBuffer = wordBuffer + buffer[i];
-				}
+				doc = Jsoup.connect(
+						"http://lema.rae.es/drae/srv/" + suggestedLink).get();
 				
-				// aca hay que limpiar la variable buffer, pero evitar crear un nuevo char
-				buffer = new char[bufferLen];
+				// Obtenemos las clasificaciones y alguna basura mas
+				content = doc.getElementsByClass("d");
+
 			}
-			
-			
-			//<span class="d" title="adjetivo">adj.</span>
-			//System.out.println( wordBuffer  );
-			
-			Integer i = 0;
-			
-			Integer wordBufferLen = wordBuffer.length();
-			
-			String classification = "";
-			
-			List<String> classifications = new ArrayList<String>();;
-			
-			while( i <  wordBufferLen )
-			{
-				while( i <  wordBufferLen  && wordBuffer.charAt( i++ ) != '"' );
-				
-				if( i <  wordBufferLen  && i+10 <  wordBufferLen  
-					&&   wordBuffer.substring( i , i+10 ).equals("d\" title=\"") )
-				{
-					i = i + 10;
-					
-					//while( i <  wordBufferLen  && wordBuffer.charAt( i++ ) != '"' ) ;
-					
-					while( i <  wordBufferLen  && wordBuffer.charAt( i ) != '"' )
-					{
-						classification += wordBuffer.charAt( i );
-						
-						i++;
-					}
-					
-					if( classification != "" )
-					{
-						classifications.add(classification);
-						classification = "";
-					}
-					
-					
-				}
-				
-			}
-		
-			
-			System.out.println("Classifications:");
-			
-			for (String element : classifications) {
-				System.out.println(element);
-			}
-			
 
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+
+		// por ahora lo mostramos, falta ver cuales de estos nos sirven
+		for (Element title : content) {
+
+			if (title.attr("title").indexOf("verbo") > -1) {
+				isVerb = true;
+			}
+
+			System.out.println(title.attr("title"));
+
+		}
+
+		if (isVerb) {
+			System.out.println("----Es verbo:---- ");
+			conjugate();
+		}
+
 	}
 
-	private List<String> searchClassifiers(String word) {
-		System.out.println("Searching classifier for " + word);
+	private void conjugate() {
 
-		List returnClassifiers = new ArrayList();
+		String conjugationURL;
+		conjugationURL = getConjugationURL();
+		String url = "http://lema.rae.es/drae/srv/" + conjugationURL;
 
-		return returnClassifiers;
+		Document conjugationDoc = null;
+
+		try {
+
+			conjugationDoc = Jsoup.connect(url).get();
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		Elements blocks = conjugationDoc.getElementsByClass("x");
+
+		for (Element block : blocks) {
+
+			String tense = block.getElementsByClass("y").html();
+
+			String conjugatedVerbs = block.getElementsByClass("z").html();
+
+			String[] conjugatedVerb = conjugatedVerbs.split("<br />");
+
+			System.out.println("tiempo:" + tense + ":" + conjugatedVerb[0]);
+
+		}
 
 	}
+
+	private String getConjugationURL() {
+
+		String conjugationURL = new String();
+
+		Elements conjugationURLElements = doc.select("a[target=_self]");
+
+		for (Element conjugationElement : conjugationURLElements) {
+
+			if (conjugationElement.child(0).attr("alt")
+					.equals("Ver conjugación")) {
+
+				conjugationURL = conjugationElement.attr("href");
+
+			}
+
+		}
+
+		return conjugationURL;
+	}
+
+	/*
+	 * 
+	 * private List<String> searchClassifiers(String word) {
+	 * System.out.println("Searching classifier for " + word);
+	 * 
+	 * List returnClassifiers = new ArrayList();
+	 * 
+	 * return returnClassifiers;
+	 * 
+	 * }
+	 */
 
 }
