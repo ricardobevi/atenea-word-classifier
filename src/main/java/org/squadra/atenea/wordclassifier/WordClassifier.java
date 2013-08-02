@@ -58,7 +58,6 @@ public class WordClassifier {
 
 			wordToClassify = URLEncoder.encode(word.toLowerCase(), "UTF-8");
 
-			//TODO: aca deberiamos convertir wordToClassify a url para escapear acentos,espacios, etc
 			raeUrl = new URL("http://lema.rae.es/drae/srv/search?val="
 					+ wordToClassify);
 
@@ -83,46 +82,57 @@ public class WordClassifier {
 					wordBuffer = wordBuffer + buffer[i];
 				}
 				
-				/*
-				 * Integer i = 0; //ArrayList<Character> wordBuffer = new
-				 * ArrayList<Character>();
-				 * 
-				 * 
-				 * while (i < bufferLen) {
-				 * 
-				 * 
-				 * 
-				 * while (i < bufferLen && buffer[i] != '"') i++;
-				 * 
-				 * i++; String wordBuffer = new String();
-				 * 
-				 * while (i < bufferLen && buffer[i] != '"') {
-				 * 
-				 * wordBuffer = wordBuffer + buffer[i]; i++;
-				 * 
-				 * }
-				 * 
-				 * if( i < bufferLen && buffer[i] == '"' )
-				 * this.searchClassifiers(wordBuffer);
-				 * 
-				 * i++;
-				 */
-				
 				// aca hay que limpiar la variable buffer, pero evitar crear un nuevo char
 				buffer = new char[bufferLen];
 			}
 			
 			
-			System.out.println( wordBuffer  );
-			
-			
 			//<span class="d" title="adjetivo">adj.</span>
-			String words = wordBuffer.replaceAll("/\"[^\"]*\"/", "ACA");
+			//System.out.println( wordBuffer  );
 			
-			System.out.println( "-------------"  );
-			System.out.println( words  );
+			Integer i = 0;
 			
-			//wordBuffer.split("\"\"");
+			Integer wordBufferLen = wordBuffer.length();
+			
+			String classification = "";
+			
+			List<String> classifications = new ArrayList<String>();;
+			
+			while( i <  wordBufferLen )
+			{
+				while( i <  wordBufferLen  && wordBuffer.charAt( i++ ) != '"' );
+				
+				if( i <  wordBufferLen  && i+10 <  wordBufferLen  
+					&&   wordBuffer.substring( i , i+10 ).equals("d\" title=\"") )
+				{
+					i = i + 10;
+					
+					//while( i <  wordBufferLen  && wordBuffer.charAt( i++ ) != '"' ) ;
+					
+					while( i <  wordBufferLen  && wordBuffer.charAt( i ) != '"' )
+					{
+						classification += wordBuffer.charAt( i );
+						
+						i++;
+					}
+					
+					if( classification != "" )
+					{
+						classifications.add(classification);
+						classification = "";
+					}
+					
+					
+				}
+				
+			}
+		
+			
+			System.out.println("Classifications:");
+			
+			for (String element : classifications) {
+				System.out.println(element);
+			}
 			
 
 		} catch (IOException e) {
