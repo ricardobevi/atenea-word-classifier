@@ -2,18 +2,28 @@ package org.squadra.atenea.wordclassifier;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
-
+import java.util.HashMap;
+import java.util.HashSet;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.squadra.atenea.wordclassifier.WordModel.Word;
+
+/*
+ * TODO:
+ * - obtener clasificaciones
+ * - obtener clasificaciones si es verbo
+ * - crear objeto palabra
+ * - paralelizar lo paralelizable
+ * 
+ */
 
 public class WordClassifier {
 
-	private List<String> classifiers;
+	private HashSet<String> classifiers;
 
-	private Document doc;
+	// private Document doc;
 
 	/**
 	 * @param args
@@ -23,23 +33,34 @@ public class WordClassifier {
 
 		WordClassifier WC = new WordClassifier();
 
-		WC.classifyWord("siempre");
+		Word result = WC.classifyWord("correr");
+
+		System.out.println(result);
 
 	}
 
 	WordClassifier() {
 
-		classifiers = new ArrayList<String>();
+		classifiers = new HashSet<String>();
 
 		classifiers.add("adjetivo");
+		classifiers.add("verbo");
+		classifiers.add("interjección");
+		classifiers.add("nombre");
 
 	}
 
-	public void classifyWord(String word) {
+	public Word classifyWord(String word) {
+
+		Word classifiedWord = new Word(word);
 
 		boolean isVerb = false;
-		String suggestedLink;
+
+		Document doc = null;
 		Elements content = new Elements();
+		String suggestedLink;
+
+		ArrayList<String> classifications = new ArrayList<String>();
 
 		try {
 
@@ -57,7 +78,7 @@ public class WordClassifier {
 
 				doc = Jsoup.connect(
 						"http://lema.rae.es/drae/srv/" + suggestedLink).get();
-				
+
 				// Obtenemos las clasificaciones y alguna basura mas
 				content = doc.getElementsByClass("d");
 
@@ -67,28 +88,51 @@ public class WordClassifier {
 			e.printStackTrace();
 		}
 
-		// por ahora lo mostramos, falta ver cuales de estos nos sirven
 		for (Element title : content) {
 
-			if (title.attr("title").indexOf("verbo") > -1) {
+			// Si ya se que es verbo no hace falta seguir preguntando
+			if (isVerb == false && title.attr("title").indexOf("verbo") > -1) {
 				isVerb = true;
 			}
 
-			System.out.println(title.attr("title"));
+			String[] spplitedTitle = title.attr("title").split(" ");
+
+			for (String titleWord : spplitedTitle) {
+				// Busco para encontrar el genero
+
+				if (classifiedWord.getGender().equals("") && 
+						(titleWord.equals("masculino") || titleWord.equals("fememino"))) {
+
+					classifiedWord.setGender(titleWord);
+
+				} else {
+
+					classifications.add(titleWord);
+
+				}
+
+			}
 
 		}
+
+		classifiedWord.setClassification(this
+				.searchClassifiers(classifications));
 
 		if (isVerb) {
 			System.out.println("----Es verbo:---- ");
-			conjugate();
+			classifiedWord.setConjugations(conjugate(doc));
 		}
+
+		return classifiedWord;
 
 	}
 
-	private void conjugate() {
+	private HashMap<String, ArrayList<String>> conjugate(Document doc) {
+
+		HashMap<String, ArrayList<String>> conjugations = new HashMap<String, ArrayList<String>>();
 
 		String conjugationURL;
-		conjugationURL = getConjugationURL();
+		conjugationURL = getConjugationURL(doc);
 		String url = "http://lema.rae.es/drae/srv/" + conjugationURL;
 
 		Document conjugationDoc = null;
@@ -107,17 +151,25 @@ public class WordClassifier {
 
 			String tense = block.getElementsByClass("y").html();
 
-			String conjugatedVerbs = block.getElementsByClass("z").html();
+			String rawConjugations = block.getElementsByClass("z").html();
 
-			String[] conjugatedVerb = conjugatedVerbs.split("<br />");
+			ArrayList<String> conjugatedVerbs = new ArrayList<String>();
 
-			System.out.println("tiempo:" + tense + ":" + conjugatedVerb[0]);
+			String[] splittedRawConjugations = rawConjugations.split("<br />");
+
+			for (Integer i = 0; i < splittedRawConjugations.length; i++) {
+				conjugatedVerbs.add(splittedRawConjugations[i]);
+			}
+
+			conjugations.put(tense, conjugatedVerbs);
 
 		}
 
+		return conjugations;
+
 	}
 
-	private String getConjugationURL() {
+	private String getConjugationURL(Document doc) {
 
 		String conjugationURL = new String();
 
@@ -126,7 +178,7 @@ public class WordClassifier {
 		for (Element conjugationElement : conjugationURLElements) {
 
 			if (conjugationElement.child(0).attr("alt")
-					.equals("Ver conjugaci�n")) {
+					.equals("Ver conjugación")) {
 
 				conjugationURL = conjugationElement.attr("href");
 
@@ -137,16 +189,20 @@ public class WordClassifier {
 		return conjugationURL;
 	}
 
-	/*
-	 * 
-	 * private List<String> searchClassifiers(String word) {
-	 * System.out.println("Searching classifier for " + word);
-	 * 
-	 * List returnClassifiers = new ArrayList();
-	 * 
-	 * return returnClassifiers;
-	 * 
-	 * }
-	 */
+	private HashSet<String> searchClassifiers(ArrayList<String> classifications) {
+
+		HashSet<String> returnClassifiers = new HashSet<String>();
+
+		for (String classification : classifications) {
+
+			if (this.classifiers.contains(classification)) {
+				returnClassifiers.add(classification);
+			}
+
+		}
+
+		return returnClassifiers;
+
+	}
 
 }
