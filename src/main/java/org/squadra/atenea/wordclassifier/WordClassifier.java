@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -39,7 +40,7 @@ public class WordClassifier {
 
 	}
 
-	WordClassifier() {
+	public WordClassifier() {
 
 		classifiers = new HashSet<String>();
 

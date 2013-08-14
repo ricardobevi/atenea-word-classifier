@@ -1,7 +1,5 @@
 package org.squadra.atenea.wordclassifier.WordModel;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,6 +22,10 @@ public class Word {
 		this.number = "";
 		this.classification = new HashSet<String>();
 		this.conjugations = new HashMap<String, ArrayList<String>>();
+	}
+	
+	public Word (){
+		
 	}
 
 	public HashMap<String, ArrayList<String>> getConjugations() {
