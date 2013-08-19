@@ -5,6 +5,13 @@
 	<artifactId>WordClassifier</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 
+	<parent>
+		<groupId>AteneaPom</groupId>
+		<artifactId>AteneaPom</artifactId>
+		<version>0.1.0-SNAPSHOT</version>
+	</parent>
+
+
 	<dependencies>
 		<dependency>
 			<groupId>org.jsoup</groupId>
