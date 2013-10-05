@@ -27,10 +27,6 @@ public class WordClassifier {
 
 	// private Document doc;
 
-	/**
-	 * @param args
-	 * @throws IOException
-	 */
 	public static void main(String[] args) {
 
 		System.out.println("INICIANDO...");
@@ -38,12 +34,8 @@ public class WordClassifier {
 		Gson gson = new Gson();
 		
 		WordClassifier WC = new WordClassifier();
-
-		List<Word> results = WC.classifyWord("correr");
-
-		System.out.println("Resultados:");
-		//System.out.println(gson.toJson(results));
-		System.out.println(results.toString());
+		
+		System.out.println( gson.toJson( WC.isImperative("jugo")) );
 
 	}
 
@@ -62,7 +54,7 @@ public class WordClassifier {
 		try {
 
 			doc = Jsoup.connect(
-					"http://lema.rae.es/drae/srv/search?val=" + word).get();
+					"http://lema.rae.es/drae/srv/search?val=" + word).timeout(10000).get();
 
 			// Obtenemos las clasificaciones y alguna basura mas
 			content = doc.getElementsByClass("d");
@@ -76,7 +68,7 @@ public class WordClassifier {
 				suggestedLink = doc.getElementsByTag("a").get(0).attr("href");
 
 				doc = Jsoup.connect(
-						"http://lema.rae.es/drae/srv/" + suggestedLink).get();
+						"http://lema.rae.es/drae/srv/" + suggestedLink).timeout(10000).get();
 
 				// Obtenemos las clasificaciones y alguna basura mas
 				content = doc.getElementsByClass("d");
@@ -156,9 +148,6 @@ public class WordClassifier {
 		return words;
 
 	}
-
-	/*************************************************************************/
-	/* obtengo las conjugaciones para un verbo */
 	
 	private ArrayList<Word> conjugate(Document doc, String baseWord) {
 
@@ -172,7 +161,7 @@ public class WordClassifier {
 
 		try {
 
-			conjugationDoc = Jsoup.connect(url).get();
+			conjugationDoc = Jsoup.connect(url).timeout(10000).get();
 
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -271,6 +260,109 @@ public class WordClassifier {
 		}
 
 		return conjugationURL;
+	}
+	
+	public String isImperative( String word ){
+
+		boolean isVerb = false;
+		String isImperative;
+		
+		Document doc = null;
+		Elements content = new Elements();
+		String suggestedLink;
+
+		try {
+
+			doc = Jsoup.connect(
+					"http://lema.rae.es/drae/srv/search?val=" + word).timeout(10000).get();
+
+			// Obtenemos las clasificaciones y alguna basura mas
+			content = doc.getElementsByClass("d");
+
+			if (content.isEmpty()) {
+
+				// TODO: deberia traer varias sugerencias o ver si la que trae
+				// es igual
+				// No existe la palabra, se suguiere otra
+
+				suggestedLink = doc.getElementsByTag("a").get(0).attr("href");
+
+				doc = Jsoup.connect(
+						"http://lema.rae.es/drae/srv/" + suggestedLink).timeout(10000).get();
+
+				// Obtenemos las clasificaciones y alguna basura mas
+				content = doc.getElementsByClass("d");
+
+			}
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		// Clasificamos que tipo de palabra es
+		//ArrayList<Word> imperativeVerbs  = new ArrayList<Word>();
+		
+		ArrayList<String> imperativeVerbs  = new ArrayList<String>();
+		
+		for (Element title : content) {
+
+			if (isVerb == false && title.attr("title").indexOf("verbo") > -1) {
+				isVerb = true;
+				imperativeVerbs = getImpratives(doc, word);
+			}
+
+		}
+		
+		System.out.println();
+		System.out.println(imperativeVerbs.contains(word) + " baseword: " + word);
+		
+		if( imperativeVerbs.contains(word) ){
+			
+			isImperative = word;
+					
+		}else{
+			
+			isImperative = "";
+		}
+		
+
+		return isImperative;
+
+	}
+
+	private ArrayList<String> getImpratives(Document doc, String baseWord) {
+	
+		ArrayList<String> imperativeVerbs = new ArrayList<String>();
+
+		String conjugationURL;
+		conjugationURL = getConjugationURL(doc);
+		String url = "http://lema.rae.es/drae/srv/" + conjugationURL;
+	
+		Document conjugationDoc = null;
+
+		try {
+
+			conjugationDoc = Jsoup.connect(url).timeout(10000).get();
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		// Ahora tomo el modo imperativo
+		Elements imperativeConjugationsBlock = conjugationDoc.getElementsByClass("r");
+		Elements imperativeConjugationVerbs = imperativeConjugationsBlock.first().getElementsByClass("z");
+		String imperativeConjugationVerb = imperativeConjugationVerbs.first().html();
+		String[] splittedImperativeConjugationsVerbs = imperativeConjugationVerb.split("<br />|/");
+		
+		for( Integer k = 0; k < splittedImperativeConjugationsVerbs.length  ; k++ ){
+			String[] auxImperativeVerb = splittedImperativeConjugationsVerbs[k].trim().split(" "); 
+			imperativeVerbs.add( auxImperativeVerb[0] );
+		}
+		
+		Gson salida = new Gson();
+		System.out.println(  salida.toJson(imperativeVerbs)  );
+		return imperativeVerbs;
+
 	}
 
 }
