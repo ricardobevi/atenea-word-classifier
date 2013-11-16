@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import lombok.extern.log4j.Log4j;
+
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -21,7 +23,7 @@ import com.google.gson.Gson;
  * - paralelizar lo paralelizable
  * 
  */
-
+@Log4j
 public class WordClassifier {
 
 
@@ -31,11 +33,11 @@ public class WordClassifier {
 
 		System.out.println("INICIANDO...");
 		
-		Gson gson = new Gson();
+		//Gson gson = new Gson();
 		
-		WordClassifier WC = new WordClassifier();
+		//WordClassifier WC = new WordClassifier();
 		
-		System.out.println( gson.toJson( WC.isImperative("jugo")) );
+		//System.out.println( gson.toJson( WC.isImperative("jugo"),) );
 
 	}
 
@@ -262,10 +264,10 @@ public class WordClassifier {
 		return conjugationURL;
 	}
 	
-	public String isImperative( String word ){
+	public boolean isImperative( String word , String baseVerb ){
 
-		boolean isVerb = false;
-		String isImperative;
+		Boolean isVerb = false;
+		Boolean result = false;
 		
 		Document doc = null;
 		Elements content = new Elements();
@@ -274,7 +276,7 @@ public class WordClassifier {
 		try {
 
 			doc = Jsoup.connect(
-					"http://lema.rae.es/drae/srv/search?val=" + word).timeout(10000).get();
+					"http://lema.rae.es/drae/srv/search?val=" + baseVerb).timeout(10000).get();
 
 			// Obtenemos las clasificaciones y alguna basura mas
 			content = doc.getElementsByClass("d");
@@ -285,49 +287,71 @@ public class WordClassifier {
 				// es igual
 				// No existe la palabra, se suguiere otra
 
-				suggestedLink = doc.getElementsByTag("a").get(0).attr("href");
+				
+				if( doc.getElementsByTag("a") != null  && 
+					doc.getElementsByTag("a").get(0) != null &&  
+					doc.getElementsByTag("a").get(0).attr("href") != null){
+					
+					suggestedLink = doc.getElementsByTag("a").get(0).attr("href");
 
-				doc = Jsoup.connect(
-						"http://lema.rae.es/drae/srv/" + suggestedLink).timeout(10000).get();
+					doc = Jsoup.connect(
+							"http://lema.rae.es/drae/srv/" + suggestedLink).timeout(10000).get();
 
-				// Obtenemos las clasificaciones y alguna basura mas
-				content = doc.getElementsByClass("d");
+					// Obtenemos las clasificaciones y alguna basura mas
+					content = doc.getElementsByClass("d");
 
+					
+				}
 			}
 
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 
-		// Clasificamos que tipo de palabra es
-		//ArrayList<Word> imperativeVerbs  = new ArrayList<Word>();
+		if( content.isEmpty() ){
 		
-		ArrayList<String> imperativeVerbs  = new ArrayList<String>();
-		
-		for (Element title : content) {
+			// Clasificamos que tipo de palabra es
+			
+			
+			ArrayList<String> imperativeVerbs  = new ArrayList<String>();
+			
+			for (Element title : content) {
 
-			if (isVerb == false && title.attr("title").indexOf("verbo") > -1) {
-				isVerb = true;
-				imperativeVerbs = getImpratives(doc, word);
+				if (isVerb == false && title.attr("title").indexOf("verbo") > -1) {
+					isVerb = true;
+					imperativeVerbs = getImpratives(doc, word);
+				}
+
 			}
+			
+			Gson gson = new Gson();
+				
+			log.debug("---------Imperativos--------- busco:" + word + " a traves de " + baseVerb + " En:" + gson.toJson(imperativeVerbs) );
+			
+			result = imperativeVerbs.contains(word); 
+		}
+				
+		return result; 
+	}
 
+	private ArrayList<String> addImperativeDerived(ArrayList<String> imperativeVerbs) {
+		
+		ArrayList<String> allImperativeVerbs = new ArrayList<String>();
+		
+		for (String imperativeVerb : imperativeVerbs) {
+			
+			allImperativeVerbs.add(imperativeVerb);
+			allImperativeVerbs.add(imperativeVerb + "me");
+			allImperativeVerbs.add(imperativeVerb + "te");
+			allImperativeVerbs.add(imperativeVerb + "nos");
+			allImperativeVerbs.add(imperativeVerb + "les");
+			allImperativeVerbs.add(imperativeVerb + "le");
+			
 		}
 		
-		System.out.println();
-		System.out.println(imperativeVerbs.contains(word) + " baseword: " + word);
+		return allImperativeVerbs;
 		
-		if( imperativeVerbs.contains(word) ){
-			
-			isImperative = word;
-					
-		}else{
-			
-			isImperative = "";
-		}
 		
-
-		return isImperative;
-
 	}
 
 	private ArrayList<String> getImpratives(Document doc, String baseWord) {
@@ -356,13 +380,32 @@ public class WordClassifier {
 		
 		for( Integer k = 0; k < splittedImperativeConjugationsVerbs.length  ; k++ ){
 			String[] auxImperativeVerb = splittedImperativeConjugationsVerbs[k].trim().split(" "); 
-			imperativeVerbs.add( auxImperativeVerb[0] );
+
+			//TODO: Para que tome los imperativos con acentos se debe salvar el unicode de la siguiente linea
+			imperativeVerbs.add( decodeUnicodeAccent(auxImperativeVerb[0]) );
 		}
 		
-		Gson salida = new Gson();
-		System.out.println(  salida.toJson(imperativeVerbs)  );
+		imperativeVerbs = addImperativeDerived(imperativeVerbs);
+		
 		return imperativeVerbs;
 
+	}
+	
+	private String decodeUnicodeAccent( String word ){
+		
+		word.replace("\u00C1", "Á" );
+		word.replace("\u00E1", "á" );
+		word.replace("\u00C9", "É" );
+		word.replace("\u00E9", "é" );
+		word.replace("\u00CD", "Í" );
+		word.replace("\u00ED", "í" );
+		word.replace("\u00D3", "Ó" );
+		word.replace("\u00F3", "ó" );
+		word.replace("\u00DA", "Ú" );
+		word.replace("\u00FA", "ú" );
+		
+		return word;
+		
 	}
 
 }
