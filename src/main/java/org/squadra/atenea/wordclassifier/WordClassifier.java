@@ -344,8 +344,12 @@ public class WordClassifier {
 			allImperativeVerbs.add(imperativeVerb + "me");
 			allImperativeVerbs.add(imperativeVerb + "te");
 			allImperativeVerbs.add(imperativeVerb + "nos");
-			allImperativeVerbs.add(imperativeVerb + "les");
 			allImperativeVerbs.add(imperativeVerb + "le");
+			allImperativeVerbs.add(imperativeVerb + "les");
+			allImperativeVerbs.add(imperativeVerb + "la");
+			allImperativeVerbs.add(imperativeVerb + "las");
+			allImperativeVerbs.add(imperativeVerb + "lo");
+			allImperativeVerbs.add(imperativeVerb + "los");
 			
 		}
 		
